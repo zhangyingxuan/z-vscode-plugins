@@ -1,0 +1,65 @@
+{
+  "name": "stock-ticker",
+  "displayName": "Stock Ticker - 指数观测",
+  "description": "秒级指数指标监控",
+  "version": "0.0.2",
+  "publisher": "blowsysun",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "stock-ticker.showChart",
+        "title": "上证指数: 查看分时图"
+      },
+      {
+        "command": "stock-ticker.refresh",
+        "title": "上证指数: 刷新数据",
+        "icon": "$(refresh)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "stock-ticker.refresh",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r"
+      },
+      {
+        "command": "stock-ticker.showChart",
+        "key": "ctrl+shift+v",
+        "mac": "cmd+shift+v"
+      }
+    ],
+    "configuration": {
+      "title": "Stock Ticker",
+      "properties": {
+        "stock-ticker.refreshInterval": {
+          "type": "number",
+          "default": 1,
+          "description": "数据刷新间隔（秒），交易时间内生效"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.74.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.3.0"
+  }
+}
