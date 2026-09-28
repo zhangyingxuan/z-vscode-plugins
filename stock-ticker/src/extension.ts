@@ -208,31 +208,23 @@ function renderStatusBar(q: StockQuote) {
   const diffYi = (Math.abs(q.turnoverChange) / 1e8).toFixed(0);
   const volText =
     q.turnoverChange > 0
-      ? `放量${diffYi}`
+      ? `+${diffYi}`
       : q.turnoverChange < 0
-        ? `缩量${diffYi}`
+        ? `-${diffYi}`
         : ``;
 
   statusBarItem.text = `${icon} ${q.price.toFixed(2)} ${sign}${q.changePercent.toFixed(2)}% ${volText}`;
 
-  const volText2 =
-    q.turnoverChange > 0
-      ? `放量 ${formatTurnover(Math.abs(q.turnoverChange))}`
-      : q.turnoverChange < 0
-        ? `缩量 ${formatTurnover(Math.abs(q.turnoverChange))}`
-        : `持平`;
-
+  const todayChange = q.price - q.open;
   statusBarItem.tooltip = new vscode.MarkdownString(
     [
       "| 指标 | 今日 | 昨日 |",
       "| --- | --- | --- |",
       `| 点位 | ${q.price.toFixed(2)} | ${q.prevClose.toFixed(2)} |`,
-      `| 涨跌 | ${sign}${q.changePercent.toFixed(2)}% | — |`,
+      `| 涨跌 | ${sign}${q.changePercent.toFixed(2)}% | ${todayChange.toFixed(2)} |`,
+      `| 成交量 | ${volText} 亿 | ${formatTurnover(q.predictTurnover)}(预测) |`,
       `| 成交额 | ${formatTurnover(q.turnover)} | ${formatTurnover(q.prevTurnover)} |`,
-      `| 成交量 | ${volText2} | — |`,
-      `| 开/高/低 | ${q.open.toFixed(2)} / ${q.high.toFixed(2)} / ${q.low.toFixed(2)} | — |`,
-      `| 预测全天 | ${formatTurnover(q.predictTurnover)} | — |`,
-      `| 均额5/60日 | — | ${formatTurnover(q.avgTurnover5)} / ${formatTurnover(q.avgTurnover60)} |`,
+      `| 均额5/60日 | ${formatTurnover(q.avgTurnover5)} | ${formatTurnover(q.avgTurnover60)} |`,
       "",
       "_点击打开分时图_",
     ].join("\n"),
@@ -489,10 +481,10 @@ function isMarketOpen(): boolean {
 /** 格式化成交额（输入单位：元） */
 function formatTurnover(val: number): string {
   if (val >= 1e8) {
-    return (val / 1e8).toFixed(2) + " 亿元";
+    return (val / 1e8).toFixed(2) + " 亿";
   }
   if (val >= 1e4) {
-    return (val / 1e4).toFixed(0) + " 万元";
+    return (val / 1e4).toFixed(0) + " 万";
   }
   return val.toFixed(0) + " 元";
 }
