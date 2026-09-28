@@ -2,7 +2,7 @@
   "name": "stock-ticker",
   "displayName": "Stock Ticker - 指数观测",
   "description": "秒级指数指标监控",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "publisher": "blowsysun",
   "engines": {
     "vscode": "^1.74.0"
@@ -24,6 +24,10 @@
         "command": "stock-ticker.refresh",
         "title": "上证指数: 刷新数据",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "stock-ticker.manageBoardQueries",
+        "title": "上证指数: 管理看板问答语句"
       }
     ],
     "keybindings": [
@@ -44,7 +48,66 @@
         "stock-ticker.refreshInterval": {
           "type": "number",
           "default": 1,
-          "description": "数据刷新间隔（秒），交易时间内生效"
+          "description": "行情数据刷新间隔（秒），交易时间内生效"
+        },
+        "stock-ticker.boardAutoRefresh": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否自动刷新新高/新低看板（默认关闭，避免无谓请求）"
+        },
+        "stock-ticker.boardRefreshInterval": {
+          "type": "number",
+          "default": 300,
+          "description": "看板自动刷新间隔（秒），仅当 boardAutoRefresh 开启且处于交易时段时生效"
+        },
+        "stock-ticker.boardQueries": {
+          "type": "object",
+          "default": {
+            "sectorHigh": "同花顺行业新高",
+            "sectorLow": "同花顺行业新低",
+            "stockHigh": "创60日新高的个股 非ST",
+            "stockLow": "创60日新低的个股 非ST"
+          },
+          "description": "新高/新低看板的爱问财问答语句（板块、个股各两条），可在分时图面板点「问句管理」修改",
+          "properties": {
+            "sectorHigh": {
+              "type": "string",
+              "description": "板块新高问句"
+            },
+            "sectorLow": {
+              "type": "string",
+              "description": "板块新低问句"
+            },
+            "stockHigh": {
+              "type": "string",
+              "description": "个股新高问句"
+            },
+            "stockLow": {
+              "type": "string",
+              "description": "个股新低问句"
+            }
+          }
+        },
+        "stock-ticker.customBoards": {
+          "type": "array",
+          "default": [],
+          "description": "用户自定义看板（问句管理页可增删改）；每项为 { id, name, question }",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string",
+                "description": "看板显示名称"
+              },
+              "question": {
+                "type": "string",
+                "description": "爱问财问答语句"
+              }
+            }
+          }
         }
       }
     }
@@ -54,7 +117,8 @@
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "lint": "eslint src --ext ts",
-    "package": "vsce package"
+    "package": "npx vsce package",
+    "build": "npm run compile && npm run package"
   },
   "devDependencies": {
     "@types/node": "^18.0.0",
