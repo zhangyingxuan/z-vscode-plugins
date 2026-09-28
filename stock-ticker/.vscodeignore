@@ -12,3 +12,5 @@ vsc-extension-quickstart.md
 node_modules/**
 .pnpm-store/**
 *.vsix
+out/components/**
+out/services/**

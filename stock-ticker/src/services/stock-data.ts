@@ -1,6 +1,6 @@
 import * as https from "https";
 import * as http from "http";
-import { createV } from "./hexin-v";
+import { createV } from "pay-back-core";
 
 /** 指数行情 + 两市成交额（fuyao 图表 + THS 现价快照） */
 export interface StockQuote {
