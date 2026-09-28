@@ -215,20 +215,32 @@ function renderStatusBar(q: StockQuote) {
 
   statusBarItem.text = `${icon} ${q.price.toFixed(2)} ${sign}${q.changePercent.toFixed(2)}% ${volText}`;
 
+  const volRow =
+    q.turnoverChange > 0
+      ? `放量 ${formatTurnover(Math.abs(q.turnoverChange))}`
+      : q.turnoverChange < 0
+        ? `缩量 ${formatTurnover(Math.abs(q.turnoverChange))}`
+        : `持平`;
+
   statusBarItem.tooltip = new vscode.MarkdownString(
     [
-      `指数点位 ${q.price.toFixed(2)} ${sign}${q.changePercent.toFixed(2)}%`,
-      `今开 ${q.open.toFixed(2)}  昨收 ${q.prevClose.toFixed(2)}`,
-      `最高 ${q.high.toFixed(2)}  最低 ${q.low.toFixed(2)}`,
-      `两市成交 ${formatTurnover(q.turnover)}`,
-      // `昨日成交 ${formatTurnover(q.prevTurnover)}`,
-      // `较昨日 ${sign}${formatTurnover(Math.abs(q.turnoverChange))}`,
-      `预测全天 ${formatTurnover(q.predictTurnover)}`,
-      `近5日均额 ${formatTurnover(q.avgTurnover5)}  近60日均额 ${formatTurnover(q.avgTurnover60)}`,
+      "| 指标 | 数值 |",
+      "| --- | --- |",
+      `| 指数点位 | ${q.price.toFixed(2)} |`,
+      `| 涨跌额 | ${sign}${q.changeAmount.toFixed(2)}（${sign}${q.changePercent.toFixed(2)}%）|`,
+      `| 今开 | ${q.open.toFixed(2)} |`,
+      `| 昨收 | ${q.prevClose.toFixed(2)} |`,
+      `| 最高 | ${q.high.toFixed(2)} |`,
+      `| 最低 | ${q.low.toFixed(2)} |`,
+      `| 当日成交 | ${formatTurnover(q.turnover)} |`,
+      `| 昨日成交 | ${formatTurnover(q.prevTurnover)} |`,
+      `| 较昨日 | ${volRow} |`,
+      `| 预测全天成交 | ${formatTurnover(q.predictTurnover)} |`,
+      `| 近5日均额 | ${formatTurnover(q.avgTurnover5)} |`,
+      `| 近60日均额 | ${formatTurnover(q.avgTurnover60)} |`,
       "",
-      "---",
       "_点击打开分时图_",
-    ].join("\n\n"),
+    ].join("\n"),
   );
 }
 
