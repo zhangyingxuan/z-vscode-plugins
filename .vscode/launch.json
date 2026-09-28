@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Stock Ticker",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/stock-ticker"],
+      "outFiles": ["${workspaceFolder}/stock-ticker/out/**/*.js"],
+      "preLaunchTask": "npm: watch - stock-ticker"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Stock Ticker — VS Code 扩展架构",
+    "output": "stock-ticker-architecture.html",
+    "quality_profile": "showcase",
+    "locale": "zh-CN",
+    "views": [
+      { "id": "data-flow", "label": "数据流", "focus": ["dataservice", "tencent", "eastmoney", "sina", "cache"], "note": "从外部金融 API 到内存缓存的数据获取路径" },
+      { "id": "ui-rendering", "label": "UI 渲染", "focus": ["ext-host", "statusbar", "webview"], "note": "扩展宿主如何将数据分发到状态栏和 Webview 面板" }
+    ]
+  },
+  "components": [
+    { "id": "vscode", "type": "external", "label": "VS Code", "sublabel": "编辑器宿主", "pos": [40, 240], "size": [120, 60] },
+    { "id": "ext-host", "type": "backend", "label": "Extension Host", "sublabel": "extension.ts", "pos": [260, 240], "size": [150, 60], "tag": "控制器" },
+    { "id": "statusbar", "type": "frontend", "label": "Status Bar", "sublabel": "实时行情", "pos": [260, 80], "size": [130, 56] },
+    { "id": "webview", "type": "frontend", "label": "Chart Webview", "sublabel": "chart-webview.ts", "pos": [500, 80], "size": [150, 56], "tag": "Canvas 分时图" },
+    { "id": "dataservice", "type": "backend", "label": "StockDataService", "sublabel": "stock-data.ts", "pos": [500, 240], "size": [160, 60], "tag": "零依赖" },
+    { "id": "cache", "type": "database", "label": "内存缓存", "sublabel": "Map<string, number>", "pos": [320, 400], "size": [140, 56] },
+    { "id": "tencent", "type": "external", "label": "腾讯财经 API", "sublabel": "ifzq / qt.gtimg.cn", "pos": [780, 100], "size": [150, 56] },
+    { "id": "eastmoney", "type": "external", "label": "东方财富 API", "sublabel": "push2his.eastmoney.com", "pos": [780, 260], "size": [150, 56] },
+    { "id": "sina", "type": "external", "label": "新浪财经 API", "sublabel": "money.finance.sina.com.cn", "pos": [780, 420], "size": [150, 56] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "stock-ticker 扩展 (零运行时依赖)", "wraps": ["ext-host", "statusbar", "webview", "dataservice", "cache"] }
+  ],
+  "connections": [
+    { "id": "activate", "from": "vscode", "to": "ext-host", "label": "onStartupFinished", "variant": "emphasis" },
+    { "id": "render-status", "from": "ext-host", "to": "statusbar", "label": "渲染报价", "fromSide": "top", "toSide": "bottom", "labelDx": -55, "labelDy": -12 },
+    { "id": "post-quote", "from": "ext-host", "to": "webview", "label": "postMessage", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "fetch-quote", "from": "ext-host", "to": "dataservice", "label": "fetchQuote()", "labelDy": -12 },
+    { "id": "fetch-board", "from": "ext-host", "to": "dataservice", "label": "fetchBoardData()", "variant": "dashed", "labelDy": 12 },
+    { "id": "quote-data", "from": "dataservice", "to": "tencent", "label": "实时行情 + 批量报价", "fromSide": "right", "toSide": "left" },
+    { "id": "prev-turnover", "from": "dataservice", "to": "eastmoney", "label": "前日同时段成交额", "fromSide": "bottom", "toSide": "left" },
+    { "id": "kline", "from": "dataservice", "to": "sina", "label": "60 日 K 线高低点", "fromSide": "right", "toSide": "left" },
+    { "id": "cache-read", "from": "dataservice", "to": "cache", "label": "读写缓存", "fromSide": "bottom", "toSide": "top" },
+    { "id": "refresh-msg", "from": "webview", "to": "ext-host", "label": "refresh 消息", "variant": "dashed", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "数据源", "items": ["腾讯财经提供实时行情与批量报价", "东方财富提供前日同时段累计成交额", "新浪财经提供 60 日 K 线高低点"] },
+    { "dot": "emerald", "title": "扩展内部", "items": ["Extension Host 负责生命周期与定时刷新", "StockDataService 零运行时依赖，仅用 Node https", "内存缓存按日期自动轮转"] },
+    { "dot": "amber", "title": "UI 层", "items": ["状态栏实时显示上证综指报价与涨跌", "Webview 面板渲染 Canvas 分时图与板块仪表盘", "交易时段外自动跳过刷新以节省资源"] }
+  ]
+}
