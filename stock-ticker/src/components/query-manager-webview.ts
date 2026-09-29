@@ -34,6 +34,11 @@ export function buildQueryManagerHtml(
       hint: "示例：同花顺行业新低",
     },
     {
+      key: "sectorNotNewLow",
+      label: "板块 · 不创新低",
+      hint: "示例：同花顺行业未创新低（板块未创区间新低）",
+    },
+    {
       key: "stockHigh",
       label: "个股 · 新高",
       hint: "示例：创60日新高的个股 非ST",
@@ -42,6 +47,11 @@ export function buildQueryManagerHtml(
       key: "stockLow",
       label: "个股 · 新低",
       hint: "示例：创60日新低的个股 非ST",
+    },
+    {
+      key: "stockNotNewLow",
+      label: "个股 · 不创新低",
+      hint: "示例：未创60日新低的个股 非ST",
     },
   ];
 
@@ -135,6 +145,17 @@ export function buildQueryManagerHtml(
     background: var(--vscode-input-background, #252526);
     color: var(--vscode-input-foreground, #ccc);
     border: 1px solid var(--vscode-input-border, #3c3c3c);
+    border-radius: 4px;
+    box-sizing: border-box;
+  }
+  .custom-row .cb-module {
+    width: 92px;
+    flex-shrink: 0;
+    padding: 7px 6px;
+    font-size: 12px;
+    background: var(--vscode-dropdown-background, #252526);
+    color: var(--vscode-dropdown-foreground, #ccc);
+    border: 1px solid var(--vscode-dropdown-border, #3c3c3c);
     border-radius: 4px;
     box-sizing: border-box;
   }
@@ -238,8 +259,8 @@ export function buildQueryManagerHtml(
 <body>
   <h1>看板问答语句管理</h1>
   <div class="sub">
-    新高 / 新低看板通过爱问财（iwencai.com）自然语言问答获取数据。
-    下方四个问题分别对应看板的不同分组，保存后立即生效并自动刷新看板。
+    新高 / 新低 / 不创新低看板通过爱问财（iwencai.com）自然语言问答获取数据。
+    下方六个问题分别对应看板的不同分组，保存后立即生效并自动刷新看板。
     <br>若某分组持续为空，说明该问句在爱问财没有返回结果，可调整措辞后重试。
   </div>
   ${rowsHtml}
@@ -320,6 +341,10 @@ export function buildQueryManagerHtml(
     for (const b of CUSTOM) {
       h += '<div class="custom-row" data-id="' + esc(b.id) + '">';
       h += '<input class="cb-name" value="' + esc(b.name) + '" placeholder="看板名称" />';
+      h += '<select class="cb-module" title="归属看板模块">';
+      h += '<option value="sector"' + (b.module !== 'stock' ? ' selected' : '') + '>板块</option>';
+      h += '<option value="stock"' + (b.module === 'stock' ? ' selected' : '') + '>个股</option>';
+      h += '</select>';
       h += '<textarea rows="1" spellcheck="false" placeholder="问句">' + esc(b.question) + '</textarea>';
       h += '<button class="cb-del" title="删除该看板">删除</button>';
       h += '</div>';
@@ -343,6 +368,7 @@ export function buildQueryManagerHtml(
       id: 'cb' + Date.now() + Math.random().toString(36).slice(2, 7),
       name: '',
       question: '',
+      module: 'sector',
     });
     renderCustom();
   });
@@ -356,7 +382,14 @@ export function buildQueryManagerHtml(
     for (const row of listEl.querySelectorAll('.custom-row')) {
       const name = row.querySelector('.cb-name').value.trim();
       const question = row.querySelector('textarea').value.trim();
-      if (name && question) customBoards.push({ id: row.dataset.id, name, question });
+      if (name && question) {
+        customBoards.push({
+          id: row.dataset.id,
+          name,
+          question,
+          module: row.querySelector('.cb-module').value,
+        });
+      }
     }
     const interval = Math.max(1, Math.floor(parseInt(intervalInput.value, 10) || 300));
     vscode.postMessage({

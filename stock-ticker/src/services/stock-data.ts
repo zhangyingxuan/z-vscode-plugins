@@ -36,18 +36,23 @@ export interface StockQuote {
   indexTrends: Array<[string, number]>;
 }
 
+/** 看板模块归属（用户自定义看板归属到「板块」或「个股」模块展示） */
+export type BoardModule = "sector" | "stock";
+
 /** 板块看板数据 */
 export interface BoardData {
   sectors: {
     newHigh: BoardItem[];
     newLow: BoardItem[];
+    notNewLow: BoardItem[];
   };
   stocks: {
     newHigh: BoardItem[];
     newLow: BoardItem[];
+    notNewLow: BoardItem[];
   };
   /** 用户自定义看板列表 */
-  custom: Array<{ title: string; items: BoardItem[] }>;
+  custom: Array<{ title: string; items: BoardItem[]; module?: BoardModule }>;
 }
 export interface BoardItem {
   code: string;
@@ -64,6 +69,8 @@ export interface CustomBoard {
   name: string;
   /** 爱问财问答语句 */
   question: string;
+  /** 归属模块：板块/个股（决定在板块区域还是个股区域展示） */
+  module?: BoardModule;
 }
 
 /** 看板问答语句（可通过设置页管理） */
@@ -72,18 +79,24 @@ export interface BoardQueries {
   sectorHigh: string;
   /** 板块新低问句 */
   sectorLow: string;
+  /** 板块不创新低问句 */
+  sectorNotNewLow: string;
   /** 个股新高问句 */
   stockHigh: string;
   /** 个股新低问句 */
   stockLow: string;
+  /** 个股不创新低问句 */
+  stockNotNewLow: string;
 }
 
 /** 看板问答语句默认值 */
 export const DEFAULT_BOARD_QUERIES: BoardQueries = {
   sectorHigh: "同花顺行业新高",
   sectorLow: "同花顺行业新低",
+  sectorNotNewLow: "同花顺行业未创新低",
   stockHigh: "创60日新高的个股 非ST",
   stockLow: "创60日新低的个股 非ST",
+  stockNotNewLow: "未创60日新低的个股 非ST",
 };
 
 /** fuyao 图表接口返回的单个图表 */
@@ -179,23 +192,41 @@ export class StockDataService {
     queries: BoardQueries,
     custom: CustomBoard[] = [],
   ): Promise<BoardData> {
-    const [sectorHigh, sectorLow, stockHigh, stockLow, customLists] =
-      await Promise.all([
-        this.fetchBoardItems(queries.sectorHigh, true),
-        this.fetchBoardItems(queries.sectorLow, true),
-        this.fetchBoardItems(queries.stockHigh, false),
-        this.fetchBoardItems(queries.stockLow, false),
-        Promise.all(
-          custom.map(async (cb) => ({
-            title: cb.name,
-            items: await this.fetchBoardItems(cb.question, false),
-          })),
-        ),
-      ]);
+    const [
+      sectorHigh,
+      sectorLow,
+      sectorNotNewLow,
+      stockHigh,
+      stockLow,
+      stockNotNewLow,
+      customLists,
+    ] = await Promise.all([
+      this.fetchBoardItems(queries.sectorHigh, true),
+      this.fetchBoardItems(queries.sectorLow, true),
+      this.fetchBoardItems(queries.sectorNotNewLow, true),
+      this.fetchBoardItems(queries.stockHigh, false),
+      this.fetchBoardItems(queries.stockLow, false),
+      this.fetchBoardItems(queries.stockNotNewLow, false),
+      Promise.all(
+        custom.map(async (cb) => ({
+          title: cb.name,
+          items: await this.fetchBoardItems(cb.question, false),
+          module: cb.module,
+        })),
+      ),
+    ]);
 
     return {
-      sectors: { newHigh: sectorHigh, newLow: sectorLow },
-      stocks: { newHigh: stockHigh, newLow: stockLow },
+      sectors: {
+        newHigh: sectorHigh,
+        newLow: sectorLow,
+        notNewLow: sectorNotNewLow,
+      },
+      stocks: {
+        newHigh: stockHigh,
+        newLow: stockLow,
+        notNewLow: stockNotNewLow,
+      },
       custom: customLists,
     };
   }

@@ -2,7 +2,7 @@
   "name": "stock-ticker",
   "displayName": "Stock Ticker - 指数观测",
   "description": "秒级指数指标监控",
-  "version": "0.0.6",
+  "version": "1.0.0",
   "publisher": "blowsysun",
   "engines": {
     "vscode": "^1.74.0"
@@ -65,10 +65,12 @@
           "default": {
             "sectorHigh": "同花顺行业新高",
             "sectorLow": "同花顺行业新低",
+            "sectorNotNewLow": "同花顺行业未创新低",
             "stockHigh": "创60日新高的个股 非ST",
-            "stockLow": "创60日新低的个股 非ST"
+            "stockLow": "创60日新低的个股 非ST",
+            "stockNotNewLow": "未创60日新低的个股 非ST"
           },
-          "description": "新高/新低看板的爱问财问答语句（板块、个股各两条），可在分时图面板点「问句管理」修改",
+          "description": "新高/新低/不创新低看板的爱问财问答语句（板块、个股各三条），可在分时图面板点「问句管理」修改",
           "properties": {
             "sectorHigh": {
               "type": "string",
@@ -78,6 +80,10 @@
               "type": "string",
               "description": "板块新低问句"
             },
+            "sectorNotNewLow": {
+              "type": "string",
+              "description": "板块不创新低问句"
+            },
             "stockHigh": {
               "type": "string",
               "description": "个股新高问句"
@@ -85,13 +91,17 @@
             "stockLow": {
               "type": "string",
               "description": "个股新低问句"
+            },
+            "stockNotNewLow": {
+              "type": "string",
+              "description": "个股不创新低问句"
             }
           }
         },
         "stock-ticker.customBoards": {
           "type": "array",
           "default": [],
-          "description": "用户自定义看板（问句管理页可增删改）；每项为 { id, name, question }",
+          "description": "用户自定义看板（问句管理页可增删改）；每项为 { id, name, question, module }，module 为 sector(板块)/stock(个股) 归属模块",
           "items": {
             "type": "object",
             "properties": {
@@ -105,6 +115,14 @@
               "question": {
                 "type": "string",
                 "description": "爱问财问答语句"
+              },
+              "module": {
+                "type": "string",
+                "enum": [
+                  "sector",
+                  "stock"
+                ],
+                "description": "归属看板模块：sector(板块) / stock(个股)"
               }
             }
           }

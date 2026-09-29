@@ -220,7 +220,7 @@ export function buildChartHtml(
 (function() {
   const vscode = acquireVsCodeApi();
   const q = ${dataJson};
-  const board = ${boardJson} || { sectors: { newHigh: [], newLow: [] }, stocks: { newHigh: [], newLow: [] }, custom: [] };
+  const board = ${boardJson} || { sectors: { newHigh: [], newLow: [], notNewLow: [] }, stocks: { newHigh: [], newLow: [], notNewLow: [] }, custom: [] };
   let quoteUpdatedAt = ${quoteTimeJson};
   let boardUpdatedAt = ${boardTimeJson};
 
@@ -246,7 +246,7 @@ export function buildChartHtml(
 
     document.getElementById('info-turnover').textContent = '当日成交额: ' + fmtYi(q.turnover);
     document.getElementById('info-pre').textContent = '昨日成交额: ' + fmtYi(q.prevTurnover);
-    document.getElementById('info-change').textContent = '较昨日' + (q.turnoverChange > 0 ? '+' : q.turnoverChange < 0 ? '-' : '=') + ' ' + fmtYi(q.turnoverChange);
+    document.getElementById('info-change').textContent = '较昨日：' + fmtYi(q.turnoverChange);
     document.getElementById('info-predict').textContent = '预测全天: ' + fmtYi(q.predictTurnover);
     document.getElementById('info-avg').textContent = '近60日均额: ' + fmtYi(q.avgTurnover60);
   }
@@ -480,13 +480,31 @@ export function buildChartHtml(
     html += '<div class="section-label">板块</div>';
     html += buildCard('新高板块', 'dot-red', board.sectors.newHigh);
     html += buildCard('新低板块', 'dot-green', board.sectors.newLow);
+    html += buildCard('不创新低板块', 'dot-gray', board.sectors.notNewLow);
+    // 归属「板块」模块的自定义看板
+    if (Array.isArray(board.custom)) {
+      for (const cb of board.custom) {
+        if (cb.module === 'sector') html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
+      }
+    }
     html += '<div class="section-label">个股</div>';
     html += buildCard('新高个股', 'dot-red', board.stocks.newHigh);
     html += buildCard('新低个股', 'dot-green', board.stocks.newLow);
-    // 用户自定义看板
+    html += buildCard('不创新低个股', 'dot-gray', board.stocks.notNewLow);
+    // 归属「个股」模块的自定义看板
     if (Array.isArray(board.custom)) {
       for (const cb of board.custom) {
-        html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
+        if (cb.module === 'stock') html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
+      }
+    }
+    // 未标注模块的自定义看板（兼容旧数据），底部平铺
+    if (Array.isArray(board.custom)) {
+      const untagged = board.custom.filter((cb) => !cb.module);
+      if (untagged.length) {
+        html += '<div class="section-label">自定义看板</div>';
+        for (const cb of untagged) {
+          html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
+        }
       }
     }
     el.innerHTML = html;

@@ -192,8 +192,10 @@ function getCustomBoards(): CustomBoard[] {
 
 function renderStatusBar(q: StockQuote) {
   // 涨跌方向：正=红▲，负=绿▼
+  const todayChange = q.price - q.open;
   const sign = q.changePercent >= 0 ? "+" : "";
-  const icon = q.changePercent > 0 ? "▲" : q.changePercent < 0 ? "▼" : "●";
+  const icon = todayChange > 0 ? "▲" : todayChange < 0 ? "▼" : "●";
+  // 当日K线 红绿判断，当前价与开盘价对比
 
   // 状态栏文字颜色：涨红 / 跌绿
   if (q.changePercent > 0) {
@@ -214,8 +216,6 @@ function renderStatusBar(q: StockQuote) {
         : ``;
 
   statusBarItem.text = `${icon} ${q.price.toFixed(2)} ${sign}${q.changePercent.toFixed(2)}% ${volText}`;
-
-  const todayChange = q.price - q.open;
   statusBarItem.tooltip = new vscode.MarkdownString(
     [
       "| 指标 | 今日 | 昨日 |",
