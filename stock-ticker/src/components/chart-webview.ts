@@ -300,15 +300,15 @@ export function buildChartHtml(
       ctx.beginPath(); ctx.moveTo(timeX(i), pad.top); ctx.lineTo(timeX(i), pad.top + chTotal); ctx.stroke();
     }
 
-    // 实际 X 映射：共用全天时间槽（以成交额分时的时间序列为准），
-    // 指数/成交额各点按 "HH:MM" 对齐到槽位，盘中数据不会错位占满全宽
-    const timeSlots = trends.map(t => t[0]);
-    const xOfSlot = (slot) => timeSlots.length <= 1 ? pad.left + cw / 2 : pad.left + (slot / (timeSlots.length - 1)) * cw;
-    const xOfIdx = (t) => {
-      const slot = timeSlots.indexOf(t[0]);
-      return slot === -1 ? xOfSlot(Math.max(0, timeSlots.length - 1)) : xOfSlot(slot);
+    // 实际 X 映射：午休不占交易时间，两组数据按同一全天时间轴定位。
+    const xOfTime = (time) => {
+      const [hour, minute] = time.split(':').map(Number);
+      const minutes = hour * 60 + minute;
+      const elapsed = minutes <= 690 ? minutes - 570 : minutes - 660;
+      return pad.left + (Math.max(0, Math.min(240, elapsed)) / 240) * cw;
     };
-    const xOfTurn = (n) => xOfSlot(n);
+    const xOfIdx = (t) => xOfTime(t[0]);
+    const xOfTurn = (n) => xOfTime(trends[n][0]);
 
     // ── 上部：上证指数点位分时线 ──
     const drawPoly = (xOfFn, pts, strokeStyle, fillTop, yTop, yBot, vMin, vMax) => {
