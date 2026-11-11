@@ -431,7 +431,7 @@ export function buildChartHtml(
         ctx.setLineDash([]);
       };
 
-      drawTurn(yest, 'rgba(148,148,148,0.6)', [4 * dpr, 4 * dpr]);
+      drawTurn(yest, '#888', null);
       const lastToday = today.filter(v => v > 0).pop() ?? 0;
       const lastYest = yest.filter(v => v > 0).pop() ?? 0;
       const c = lastToday >= lastYest ? '#ef4444' : '#22c55e';
