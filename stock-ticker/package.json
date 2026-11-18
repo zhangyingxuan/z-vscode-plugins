@@ -2,7 +2,7 @@
   "name": "stock-ticker",
   "displayName": "Stock Ticker - 指数观测",
   "description": "秒级指数指标监控",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "blowsysun",
   "icon": "icon.png",
   "engines": {
@@ -102,7 +102,7 @@
         "stock-ticker.customBoards": {
           "type": "array",
           "default": [],
-          "description": "用户自定义看板（问句管理页可增删改）；每项为 { id, name, question, module }，module 为 sector(板块)/stock(个股) 归属模块",
+          "description": "全部自定义看板，可在问句管理中编辑、删除及显示/隐藏",
           "items": {
             "type": "object",
             "properties": {
@@ -124,9 +124,19 @@
                   "stock"
                 ],
                 "description": "归属看板模块：sector(板块) / stock(个股)"
+              },
+              "visible": {
+                "type": "boolean",
+                "default": true,
+                "description": "是否显示并查询该看板"
               }
             }
           }
+        },
+        "stock-ticker.boardsVersion": {
+          "type": "number",
+          "default": 0,
+          "description": "看板配置版本，用于兼容旧固定问句，升级后自动维护"
         }
       }
     }

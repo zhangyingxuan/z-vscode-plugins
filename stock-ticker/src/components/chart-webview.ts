@@ -97,6 +97,7 @@ export function buildChartHtml(
     flex-shrink: 0;
   }
   #info-bar span { white-space: nowrap; }
+  #info-turnover { color: #fff; }
   #chart-wrap {
     width: 100%;
     flex: 0 1 35vh;
@@ -184,6 +185,9 @@ export function buildChartHtml(
   }
   .card-list li:last-child { border-bottom: none; }
   .card-list .item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-list a.item-name { color: inherit; text-decoration: none; }
+  .card-list a.item-name:hover { color: var(--vscode-textLink-foreground, #3794ff); text-decoration: underline; }
+  .card-list a.item-name:focus-visible { outline: 1px solid var(--vscode-focusBorder, #007fd4); }
   .card-list .item-pct { font-variant-numeric: tabular-nums; min-width: 60px; text-align: right; }
   .section-label {
     grid-column: 1 / -1;
@@ -247,6 +251,8 @@ export function buildChartHtml(
     document.getElementById('info-turnover').textContent = '当日成交额: ' + fmtYi(q.turnover);
     document.getElementById('info-pre').textContent = '昨日成交额: ' + fmtYi(q.prevTurnover);
     document.getElementById('info-change').textContent = '较昨日：' + fmtYi(q.turnoverChange);
+    // 复用涨跌配色，让首次加载和行情刷新都保持放量红、缩量绿。
+    document.getElementById('info-change').className = q.turnoverChange > 0 ? 'up' : q.turnoverChange < 0 ? 'down' : 'flat';
     document.getElementById('info-predict').textContent = '预测全天: ' + fmtYi(q.predictTurnover);
     document.getElementById('info-avg').textContent = '近60日均额: ' + fmtYi(q.avgTurnover60);
   }
@@ -259,6 +265,21 @@ export function buildChartHtml(
   const canvas = document.getElementById('chart');
   const wrap = document.getElementById('chart-wrap');
   const dpr = window.devicePixelRatio || 1;
+  let hoverPoint = null;
+
+  // 使用画布实际缩放比例换算指针，避免高分屏下选中的时间点偏移。
+  canvas.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    hoverPoint = {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height,
+    };
+    draw();
+  });
+  canvas.addEventListener('mouseleave', () => {
+    hoverPoint = null;
+    draw();
+  });
 
   function resize() {
     const r = wrap.getBoundingClientRect();
@@ -274,6 +295,7 @@ export function buildChartHtml(
     const W = canvas.width;
     const H = canvas.height;
     ctx.clearRect(0, 0, W, H);
+    let drawHover = () => {};
 
     const pad = { top: 16 * dpr, right: 60 * dpr, bottom: 30 * dpr, left: 16 * dpr };
     const cw = W - pad.left - pad.right;
@@ -392,6 +414,59 @@ export function buildChartHtml(
       ctx.fillText(hi.toFixed(2), pad.left + cw + 6 * dpr, yHi);
       ctx.fillStyle = lineColor === '#ef4444' ? '#22c55e' : '#ef4444';
       ctx.fillText(lo.toFixed(2), pad.left + cw + 6 * dpr, yLo);
+
+      // 沿用交易时间轴吸附到最近的有效点，午休和缺失数据不会造成索引错位。
+      if (hoverPoint && hoverPoint.x >= pad.left && hoverPoint.x <= pad.left + cw &&
+          hoverPoint.y >= yTop && hoverPoint.y <= yBot) {
+        let selected = null;
+        let distance = Infinity;
+        for (const point of pts) {
+          if (!(point[1] > 0) || !Number.isFinite(point[1])) continue;
+          const delta = Math.abs(xOfIdx(point) - hoverPoint.x);
+          if (delta < distance) { selected = point; distance = delta; }
+        }
+        if (selected) {
+          const x = xOfIdx(selected);
+          const y = yTop + (1 - (selected[1] - vMin) / (vMax - vMin)) * (yBot - yTop);
+          // 缺少昨收时不以首个分时点冒充昨收，避免展示错误涨跌幅。
+          const pct = q.prevClose > 0 ? (selected[1] - q.prevClose) / q.prevClose * 100 : null;
+          const color = pct === null || pct === 0 ? '#888' : pct > 0 ? '#ef4444' : '#22c55e';
+          ctx.strokeStyle = '#888';
+          ctx.lineWidth = dpr;
+          ctx.setLineDash([3 * dpr, 3 * dpr]);
+          ctx.beginPath(); ctx.moveTo(x, yTop); ctx.lineTo(x, yBot); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.beginPath(); ctx.arc(x, y, 4 * dpr, 0, Math.PI * 2); ctx.fill();
+
+          // 仅匹配同一时刻的两市累计成交额，缺失时不借用其他时刻的数据。
+          const turnover = trends.find(point => point[0] === selected[0]);
+          const amount = turnover && Number.isFinite(turnover[1]) && turnover[1] > 0 ? turnover[1] : null;
+          const volumeChange = amount !== null && Number.isFinite(turnover[2]) && turnover[2] > 0 ? amount - turnover[2] : null;
+          // 详情最后绘制，避免新增的成交额信息被下方图表覆盖。
+          drawHover = () => {
+            const boxW = Math.min(210 * dpr, W), boxH = 106 * dpr;
+            const boxX = Math.max(0, x + 12 * dpr + boxW <= W ? x + 12 * dpr : x - boxW - 12 * dpr);
+            const boxY = Math.max(0, Math.min(hoverPoint.y + 12 * dpr, H - boxH));
+            ctx.fillStyle = '#252526';
+            ctx.fillRect(boxX, boxY, boxW, boxH);
+            ctx.strokeStyle = '#888';
+            ctx.strokeRect(boxX, boxY, boxW, boxH);
+            ctx.font = (12 * dpr) + 'px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillStyle = '#d4d4d4';
+            ctx.fillText(selected[0], boxX + 8 * dpr, boxY + 8 * dpr);
+            ctx.fillStyle = color;
+            ctx.fillText('指数点数: ' + selected[1].toFixed(2), boxX + 8 * dpr, boxY + 27 * dpr);
+            ctx.fillText('涨跌幅: ' + (pct === null ? '--' : (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%'), boxX + 8 * dpr, boxY + 46 * dpr);
+            ctx.fillStyle = '#d4d4d4';
+            ctx.fillText('两市成交额: ' + (amount === null ? '--' : fmtYi(amount)), boxX + 8 * dpr, boxY + 65 * dpr);
+            ctx.fillStyle = volumeChange === null || volumeChange === 0 ? '#888' : volumeChange > 0 ? '#ef4444' : '#22c55e';
+            ctx.fillText('较昨日同期: ' + (volumeChange === null ? '--' : (volumeChange > 0 ? '放量' : volumeChange < 0 ? '缩量' : '持平') + fmtYi(Math.abs(volumeChange))), boxX + 8 * dpr, boxY + 84 * dpr);
+          };
+        }
+      }
     } else {
       ctx.fillStyle = '#888';
       ctx.font = (13 * dpr) + 'px sans-serif';
@@ -460,6 +535,7 @@ export function buildChartHtml(
     for (let i = 0; i < times.length; i++) {
       ctx.fillText(times[i], timeX(i), timeY);
     }
+    drawHover();
   }
 
   window.addEventListener('resize', resize);
@@ -470,43 +546,21 @@ export function buildChartHtml(
     if (!board) return;
     const el = document.getElementById('dashboard');
     let html = '<div id="dashboard-header">';
-    html += '<span class="section-title">新高 / 新低看板</span>';
+    html += '<span class="section-title">自定义看板</span>';
     html += '<span class="dash-actions">';
     html += '<span id="board-updated" class="dash-time">看板更新: ' + fmtTime(boardUpdatedAt) + '</span>';
     html += '<button id="manage-queries-btn" title="管理爱问财问答语句">问句管理</button>';
     html += '<button id="board-refresh-btn" title="刷新看板"><span class="icon">↻</span> 刷新看板</button>';
     html += '</span>';
     html += '</div>';
-    html += '<div class="section-label">板块</div>';
-    html += buildCard('新高板块', 'dot-red', board.sectors.newHigh);
-    html += buildCard('新低板块', 'dot-green', board.sectors.newLow);
-    html += buildCard('不创新低板块', 'dot-gray', board.sectors.notNewLow);
-    // 归属「板块」模块的自定义看板
-    if (Array.isArray(board.custom)) {
-      for (const cb of board.custom) {
-        if (cb.module === 'sector') html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
-      }
+    // 全部卡片由自定义列表驱动，不再追加固定的六个看板。
+    for (const [module, label] of [['sector', '板块'], ['stock', '个股']]) {
+      const cards = (board.custom || []).filter(cb => (cb.module || 'sector') === module);
+      if (!cards.length) continue;
+      html += '<div class="section-label">' + label + '</div>';
+      for (const cb of cards) html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
     }
-    html += '<div class="section-label">个股</div>';
-    html += buildCard('新高个股', 'dot-red', board.stocks.newHigh);
-    html += buildCard('新低个股', 'dot-green', board.stocks.newLow);
-    html += buildCard('不创新低个股', 'dot-gray', board.stocks.notNewLow);
-    // 归属「个股」模块的自定义看板
-    if (Array.isArray(board.custom)) {
-      for (const cb of board.custom) {
-        if (cb.module === 'stock') html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
-      }
-    }
-    // 未标注模块的自定义看板（兼容旧数据），底部平铺
-    if (Array.isArray(board.custom)) {
-      const untagged = board.custom.filter((cb) => !cb.module);
-      if (untagged.length) {
-        html += '<div class="section-label">自定义看板</div>';
-        for (const cb of untagged) {
-          html += buildCard(cb.title || '自定义', 'dot-blue', cb.items);
-        }
-      }
-    }
+    if (!(board.custom || []).length) html += '<div class="empty-msg">暂无显示的看板，可在问句管理中添加或开启显示</div>';
     el.innerHTML = html;
 
     // 绑定看板刷新按钮
@@ -543,7 +597,13 @@ export function buildChartHtml(
       for (const it of shown) {
         const c = it.changePercent > 0 ? 'up' : it.changePercent < 0 ? 'down' : 'flat';
         const s = it.changePercent > 0 ? '+' : '';
-        h += '<li><span class="item-name" title="' + escapeHtml(it.name) + '">' + escapeHtml(it.name) + '</span>';
+        // 仅接受六位证券代码及市场后缀，避免接口数据拼入任意链接；88 开头为同花顺板块指数。
+        const match = typeof it.code === 'string' && it.code.trim().match(/^([0-9]{6})(?:[.][A-Za-z]+)?$/);
+        const code = match ? match[1] : '';
+        const url = code ? (code.startsWith('88') ? 'https://q.10jqka.com.cn/thshy/detail/code/' : 'https://stockpage.10jqka.com.cn/') + code + '/' : '';
+        // 使用原生链接交给 VS Code 打开外部页面，同时支持键盘聚焦和回车访问。
+        const tag = url ? 'a' : 'span';
+        h += '<li><' + tag + ' class="item-name"' + (url ? ' href="' + url + '" title="在同花顺查看：' : ' title="') + escapeHtml(it.name) + '">' + escapeHtml(it.name) + '</' + tag + '>';
         h += '<span class="item-pct ' + c + '">' + s + it.changePercent.toFixed(2) + '%</span></li>';
       }
       h += '</ul>';

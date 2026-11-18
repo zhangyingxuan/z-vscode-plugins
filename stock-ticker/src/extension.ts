@@ -6,6 +6,7 @@ import {
   BoardQueries,
   CustomBoard,
   DEFAULT_BOARD_QUERIES,
+  createDefaultBoards,
 } from "./services/stock-data";
 import { buildChartHtml } from "./components/chart-webview";
 import { buildQueryManagerHtml } from "./components/query-manager-webview";
@@ -145,10 +146,7 @@ async function refresh(force = false) {
 
 async function refreshBoard() {
   try {
-    const board = await service.fetchBoardData(
-      getBoardQueries(),
-      getCustomBoards(),
-    );
+    const board = await service.fetchBoardData(getCustomBoards());
     latestBoard = board;
     lastBoardFetchTime = Date.now();
     if (chartPanel) {
@@ -173,11 +171,13 @@ function getBoardQueries(): BoardQueries {
 
 /** 读取用户配置的自定义看板（过滤无效项，保证 id/name/question 齐全） */
 function getCustomBoards(): CustomBoard[] {
-  const raw = vscode.workspace
-    .getConfiguration("stock-ticker")
-    .get<CustomBoard[]>("customBoards", []);
+  const cfg = vscode.workspace.getConfiguration("stock-ticker");
+  const raw = cfg.get<CustomBoard[]>("customBoards", []);
+  // 首次读取时合并旧固定问句；版本标记保证用户删空后不会再次补回。
+  const legacy = cfg.get<number>("boardsVersion", 0) < 1;
+  const defaults = legacy ? createDefaultBoards(getBoardQueries()) : [];
   return Array.isArray(raw)
-    ? raw.filter(
+    ? [...defaults, ...raw].filter(
         (b): b is CustomBoard =>
           !!b &&
           typeof b === "object" &&
@@ -185,9 +185,11 @@ function getCustomBoards(): CustomBoard[] {
           typeof b.name === "string" &&
           b.name.trim() !== "" &&
           typeof b.question === "string" &&
-          b.question.trim() !== "",
+          b.question.trim() !== "" &&
+          (b.module === undefined || b.module === "sector" || b.module === "stock") &&
+          (b.visible === undefined || typeof b.visible === "boolean"),
       )
-    : [];
+    : defaults;
 }
 
 function renderStatusBar(q: StockQuote) {
@@ -310,8 +312,6 @@ function openQueryManager() {
   const render = () => {
     const cfg = vscode.workspace.getConfiguration("stock-ticker");
     queryManagerPanel!.webview.html = buildQueryManagerHtml(
-      getBoardQueries(),
-      DEFAULT_BOARD_QUERIES,
       {
         boardAutoRefresh: cfg.get<boolean>(
           "boardAutoRefresh",
@@ -376,7 +376,9 @@ function openQueryManager() {
             vscode.ConfigurationTarget.Global,
           ),
           cfg.update("customBoards", boards, vscode.ConfigurationTarget.Global),
+          cfg.update("boardsVersion", 1, vscode.ConfigurationTarget.Global),
         ]).then(() => {
+          render();
           queryManagerPanel?.webview.postMessage({ type: "saved" });
           startBoardTimer(); // 按新设置立即重起看板自动刷新
           refreshBoard();
@@ -399,7 +401,8 @@ function openQueryManager() {
             DEFAULT_BOARD_REFRESH_INTERVAL,
             vscode.ConfigurationTarget.Global,
           ),
-          cfg.update("customBoards", [], vscode.ConfigurationTarget.Global),
+          cfg.update("customBoards", createDefaultBoards(), vscode.ConfigurationTarget.Global),
+          cfg.update("boardsVersion", 1, vscode.ConfigurationTarget.Global),
         ]).then(() => {
           queryManagerPanel?.webview.postMessage({ type: "saved" });
           render();

@@ -71,6 +71,8 @@ export interface CustomBoard {
   question: string;
   /** 归属模块：板块/个股（决定在板块区域还是个股区域展示） */
   module?: BoardModule;
+  /** 隐藏时保留配置，但不展示也不请求数据 */
+  visible?: boolean;
 }
 
 /** 看板问答语句（可通过设置页管理） */
@@ -98,6 +100,18 @@ export const DEFAULT_BOARD_QUERIES: BoardQueries = {
   stockLow: "创60日新低的个股 非ST",
   stockNotNewLow: "未创60日新低的个股 非ST",
 };
+
+/** 将旧固定问句转为普通看板，保留用户之前修改的问句。 */
+export function createDefaultBoards(queries: BoardQueries = DEFAULT_BOARD_QUERIES): CustomBoard[] {
+  const names = ["新高板块", "新低板块", "不创新低板块", "新高个股", "新低个股", "不创新低个股"];
+  return (Object.keys(DEFAULT_BOARD_QUERIES) as Array<keyof BoardQueries>).map((key, index) => ({
+    id: key,
+    name: names[index],
+    question: queries[key],
+    module: index < 3 ? "sector" : "stock",
+    visible: true,
+  }));
+}
 
 /** fuyao 图表接口返回的单个图表 */
 interface FuyaoChart {
@@ -189,45 +203,20 @@ export class StockDataService {
    * 数据源: 爱问财自然语言查询；问答语句由设置页管理
    */
   async fetchBoardData(
-    queries: BoardQueries,
-    custom: CustomBoard[] = [],
+    boards: CustomBoard[],
   ): Promise<BoardData> {
-    const [
-      sectorHigh,
-      sectorLow,
-      sectorNotNewLow,
-      stockHigh,
-      stockLow,
-      stockNotNewLow,
-      customLists,
-    ] = await Promise.all([
-      this.fetchBoardItems(queries.sectorHigh, true),
-      this.fetchBoardItems(queries.sectorLow, true),
-      this.fetchBoardItems(queries.sectorNotNewLow, true),
-      this.fetchBoardItems(queries.stockHigh, false),
-      this.fetchBoardItems(queries.stockLow, false),
-      this.fetchBoardItems(queries.stockNotNewLow, false),
-      Promise.all(
-        custom.map(async (cb) => ({
-          title: cb.name,
-          items: await this.fetchBoardItems(cb.question, false),
-          module: cb.module,
-        })),
-      ),
-    ]);
-
+    // 隐藏项不参与查询，避免后台继续产生无用请求。
+    const custom = await Promise.all(
+      boards.filter((board) => board.visible !== false).map(async (board) => ({
+        title: board.name,
+        items: await this.fetchBoardItems(board.question, board.module === "sector"),
+        module: board.module ?? "sector",
+      })),
+    );
     return {
-      sectors: {
-        newHigh: sectorHigh,
-        newLow: sectorLow,
-        notNewLow: sectorNotNewLow,
-      },
-      stocks: {
-        newHigh: stockHigh,
-        newLow: stockLow,
-        notNewLow: stockNotNewLow,
-      },
-      custom: customLists,
+      sectors: { newHigh: [], newLow: [], notNewLow: [] },
+      stocks: { newHigh: [], newLow: [], notNewLow: [] },
+      custom,
     };
   }
 

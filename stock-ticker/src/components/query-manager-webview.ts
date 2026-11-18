@@ -1,4 +1,4 @@
-import type { BoardQueries, CustomBoard } from "../services/stock-data";
+import type { CustomBoard } from "../services/stock-data";
 
 /** 看板自动刷新设置 */
 export interface QueryManagerSettings {
@@ -13,68 +13,12 @@ export interface QueryManagerSettings {
  * 表单提交/恢复默认通过 vscode.postMessage 与扩展宿主交互
  */
 export function buildQueryManagerHtml(
-  queries: BoardQueries,
-  defaults: BoardQueries,
   settings: QueryManagerSettings,
   customBoards: CustomBoard[] = [],
 ): string {
-  const fields: Array<{
-    key: keyof BoardQueries;
-    label: string;
-    hint: string;
-  }> = [
-    {
-      key: "sectorHigh",
-      label: "板块 · 新高",
-      hint: "示例：同花顺行业新高（行业指数创历史新高）；亦可带周期，如「创60日新高的同花顺二级行业」",
-    },
-    {
-      key: "sectorLow",
-      label: "板块 · 新低",
-      hint: "示例：同花顺行业新低",
-    },
-    {
-      key: "sectorNotNewLow",
-      label: "板块 · 不创新低",
-      hint: "示例：同花顺行业未创新低（板块未创区间新低）",
-    },
-    {
-      key: "stockHigh",
-      label: "个股 · 新高",
-      hint: "示例：创60日新高的个股 非ST",
-    },
-    {
-      key: "stockLow",
-      label: "个股 · 新低",
-      hint: "示例：创60日新低的个股 非ST",
-    },
-    {
-      key: "stockNotNewLow",
-      label: "个股 · 不创新低",
-      hint: "示例：未创60日新低的个股 非ST",
-    },
-  ];
-
-  const rowsHtml = fields
-    .map(
-      (f) => `
-      <div class="field">
-        <label for="${f.key}">${f.label}</label>
-        <textarea id="${f.key}" data-key="${f.key}" rows="1" spellcheck="false">${escapeAttr(
-          queries[f.key] ?? "",
-        )}</textarea>
-        <div class="hint">${f.hint}</div>
-      </div>`,
-    )
-    .join("");
-
   const autoChecked = settings.boardAutoRefresh ? "checked" : "";
   const intervalDisabled = settings.boardAutoRefresh ? "" : "disabled";
   const interval = Math.max(1, Math.floor(settings.boardRefreshInterval || 300));
-
-  const defaultsJson = JSON.stringify(defaults)
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e");
 
   const customJson = JSON.stringify(customBoards)
     .replace(/</g, "\\u003c")
@@ -130,6 +74,8 @@ export function buildQueryManagerHtml(
     border-color: var(--vscode-focusBorder, #007fd4);
   }
   .hint { font-size: 11px; opacity: 0.55; margin-top: 4px; line-height: 1.5; }
+  .cb-visibility { display: flex; align-items: center; gap: 4px; min-height: 36px; white-space: nowrap; }
+  .custom-row { flex-wrap: wrap; }
   #custom-list { margin-bottom: 12px; }
   .custom-row {
     display: flex;
@@ -260,10 +206,9 @@ export function buildQueryManagerHtml(
   <h1>看板问答语句管理</h1>
   <div class="sub">
     新高 / 新低 / 不创新低看板通过爱问财（iwencai.com）自然语言问答获取数据。
-    下方六个问题分别对应看板的不同分组，保存后立即生效并自动刷新看板。
-    <br>若某分组持续为空，说明该问句在爱问财没有返回结果，可调整措辞后重试。
+    所有看板均可编辑、删除或隐藏，保存后立即生效并刷新。
+    <br>隐藏的看板保留配置，不展示也不请求数据。
   </div>
-  ${rowsHtml}
 
   <div class="section-title">自定义看板</div>
   <div class="sub">
@@ -297,7 +242,6 @@ export function buildQueryManagerHtml(
 
 <script>
   const vscode = acquireVsCodeApi();
-  const DEFAULTS = ${defaultsJson};
 
   const autoCb = document.getElementById('autoRefresh');
   const intervalInput = document.getElementById('refreshInterval');
@@ -319,11 +263,6 @@ export function buildQueryManagerHtml(
     const max = lineH * MAX_ROWS + pad;
     t.style.height = Math.min(t.scrollHeight, max) + 'px';
   }
-  for (const t of document.querySelectorAll('textarea[data-key]')) {
-    autosize(t);
-    t.addEventListener('input', () => autosize(t));
-  }
-
   // ── 自定义看板：渲染 / 新增 / 删除 / 收集 ──
   const CUSTOM = ${customJson};
   const listEl = document.getElementById('custom-list');
@@ -340,12 +279,13 @@ export function buildQueryManagerHtml(
     let h = '';
     for (const b of CUSTOM) {
       h += '<div class="custom-row" data-id="' + esc(b.id) + '">';
-      h += '<input class="cb-name" value="' + esc(b.name) + '" placeholder="看板名称" />';
-      h += '<select class="cb-module" title="归属看板模块">';
+      h += '<input class="cb-name" value="' + esc(b.name) + '" aria-label="看板名称" placeholder="看板名称" />';
+      h += '<select class="cb-module" aria-label="归属看板模块" title="归属看板模块">';
       h += '<option value="sector"' + (b.module !== 'stock' ? ' selected' : '') + '>板块</option>';
       h += '<option value="stock"' + (b.module === 'stock' ? ' selected' : '') + '>个股</option>';
       h += '</select>';
-      h += '<textarea rows="1" spellcheck="false" placeholder="问句">' + esc(b.question) + '</textarea>';
+      h += '<textarea rows="1" spellcheck="false" aria-label="问句" placeholder="问句">' + esc(b.question) + '</textarea>';
+      h += '<label class="cb-visibility"><input type="checkbox" class="cb-visible"' + (b.visible !== false ? ' checked' : '') + '>显示</label>';
       h += '<button class="cb-del" title="删除该看板">删除</button>';
       h += '</div>';
     }
@@ -364,6 +304,8 @@ export function buildQueryManagerHtml(
   renderCustom();
 
   document.getElementById('add-custom').addEventListener('click', () => {
+    // 新增前同步输入值，避免重绘丢失未保存的编辑。
+    CUSTOM.splice(0, CUSTOM.length, ...collectBoards());
     CUSTOM.push({
       id: 'cb' + Date.now() + Math.random().toString(36).slice(2, 7),
       name: '',
@@ -373,29 +315,29 @@ export function buildQueryManagerHtml(
     renderCustom();
   });
 
-  document.getElementById('save').addEventListener('click', () => {
-    const queries = {};
-    for (const input of document.querySelectorAll('[data-key]')) {
-      queries[input.dataset.key] = input.value.trim();
-    }
+  // 保留空白草稿供新增重绘，保存时再过滤无效项。
+  function collectBoards() {
     const customBoards = [];
     for (const row of listEl.querySelectorAll('.custom-row')) {
       const name = row.querySelector('.cb-name').value.trim();
       const question = row.querySelector('textarea').value.trim();
-      if (name && question) {
-        customBoards.push({
+      customBoards.push({
           id: row.dataset.id,
           name,
           question,
           module: row.querySelector('.cb-module').value,
-        });
-      }
+          visible: row.querySelector('.cb-visible').checked,
+      });
     }
+    return customBoards;
+  }
+
+  document.getElementById('save').addEventListener('click', () => {
+    const customBoards = collectBoards().filter(b => b.name && b.question);
     const interval = Math.max(1, Math.floor(parseInt(intervalInput.value, 10) || 300));
     vscode.postMessage({
       type: 'saveConfig',
       data: {
-        queries,
         boardAutoRefresh: autoCb.checked,
         boardRefreshInterval: interval,
         customBoards,
@@ -417,13 +359,4 @@ export function buildQueryManagerHtml(
 </script>
 </body>
 </html>`;
-}
-
-/** HTML 属性转义 */
-function escapeAttr(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
 }
