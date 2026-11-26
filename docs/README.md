@@ -1,6 +1,6 @@
 # z-vscode-plugins - 知识库
 
-VS Code 插件集 z-vscode-plugins 的 AI-first 知识库。当前覆盖插件 **stock-ticker**（秒级 A 股指数观测）。文档按 7 大分类组织，AI 代理通过 [AGENTS.md](./AGENTS.md) 的两级路由检索，人类读者从本文档进入。
+z-vscode-plugins 的 AI-first 知识库，覆盖 VS Code 插件 **stock-ticker** 和 Windows 桌面应用 **stock-ticker-electron**。文档按 7 大分类组织，AI 代理通过两级路由检索。见 [AGENTS.md](./AGENTS.md)。
 
 > **快速入门**
 >
@@ -16,6 +16,7 @@ VS Code 插件集 z-vscode-plugins 的 AI-first 知识库。当前覆盖插件 *
 
 ### 01-需求分析
 - [功能需求清单](01-需求分析/功能需求清单.md) — F-01~F-06 功能与验收标准（含命令/快捷键/配置项表）
+- [Electron 行情浮窗需求](01-需求分析/Electron行情浮窗需求.md) — 窗口交互、行情口径与验收条件
 
 ### 02-业务梳理
 - [业务流程](02-业务梳理/业务流程.md) — 数据流、刷新机制、交易时段规则、系统边界
@@ -23,6 +24,7 @@ VS Code 插件集 z-vscode-plugins 的 AI-first 知识库。当前覆盖插件 *
 
 ### 03-架构设计
 - [系统全景](03-架构设计/系统全景.md) — 分层架构、模块关系、关键设计决策
+- [Electron 行情浮窗技术架构](03-架构设计/Electron行情浮窗技术架构.md) — 进程分工、原生窗口、IPC 与共享行情服务
 - [架构图](03-架构设计/架构图/stock-ticker-architecture.html) — 可视化架构图（HTML/PNG，浏览器打开）
 
 ### 04-技术方案
@@ -37,6 +39,7 @@ VS Code 插件集 z-vscode-plugins 的 AI-first 知识库。当前覆盖插件 *
 ### 06-开发规范
 - [技术栈](06-开发规范/技术栈.md) — 精确版本与 tsconfig 约定
 - [发布流程](06-开发规范/发布流程.md) — vsix 打包、版本时间线、上线清单
+- [Electron 打包流程](06-开发规范/Electron打包流程.md) — Windows x64 免安装 ZIP 与单文件 EXE
 
 ### 07-测试用例
 - [测试策略与用例](07-测试用例/测试策略与用例.md) — 手动测试分层与发布前回归清单

@@ -34,6 +34,8 @@ export interface StockQuote {
   trends: Array<[string, number, number, number]>;
   /** 上证指数分时点位: [时间, 点位] */
   indexTrends: Array<[string, number]>;
+  /** 上一个已完成交易日相对其前一交易日的涨跌幅与两市成交额差 */
+  previousSession?: { changePercent?: number; turnoverChange?: number };
 }
 
 /** 看板模块归属（用户自定义看板归属到「板块」或「个股」模块展示） */
@@ -121,6 +123,11 @@ interface FuyaoChart {
   point_list?: Array<Array<number | null>>;
 }
 
+interface PreviousSessions {
+  dates: [string, string];
+  changePercent: number;
+}
+
 /**
  * 股票数据服务
  *
@@ -137,6 +144,9 @@ export class StockDataService {
   /** 同花顺指数分时线（现价/昨收/开高低实时快照） */
   private static readonly THS_SPOT_BASE =
     "http://d.10jqka.com.cn/v6/time";
+  private static readonly THS_INDEX_DAILY =
+    "https://d.10jqka.com.cn/v6/line/zs_1A0001/01/last.js";
+  private previousSessionsCache?: { tradeDate: string; sessions?: PreviousSessions; expiresAt: number };
 
   /** 爱问财 API */
   private static readonly IWC_URL =
@@ -148,7 +158,7 @@ export class StockDataService {
    * - chart_key=turnover_minute: 市场成交额分时（当日/昨日同时刻累计 + 差值）
    * - chart_key=turnover_day: 市场成交额日K（当日 vs 近60日均值）
    */
-  async fetchQuote(signal?: AbortSignal): Promise<StockQuote> {
+  async fetchQuote(signal?: AbortSignal, includeHistory = false): Promise<StockQuote> {
     const [spot, minute, day] = await Promise.all([
       this.fetchThsSpot(signal),
       this.fetchFuyaoChart("turnover_minute", signal),
@@ -177,6 +187,10 @@ export class StockDataService {
       trends.push([this.formatBjTime(ts), today, yest, diff]);
     }
 
+    const previous = includeHistory && spot.tradeDate
+      ? await this.fetchPreviousSessions(spot.tradeDate, spot.prevClose, signal)
+      : undefined;
+
     return {
       price: spot.price,
       changePercent: spot.prevClose !== 0
@@ -195,7 +209,54 @@ export class StockDataService {
       avgTurnover60: dHeader.get("average_turnover") ?? this.avgLastNDays(day, 60),
       trends,
       indexTrends: spot.indexTrends,
+      ...(previous ? {
+        previousSession: {
+          changePercent: previous.changePercent,
+          turnoverChange: this.previousTurnoverChange(day, previous.dates),
+        },
+      } : {}),
     };
+  }
+
+  private async fetchPreviousSessions(tradeDate: string, prevClose: number, signal?: AbortSignal): Promise<PreviousSessions | undefined> {
+    // 历史涨跌幅在同一交易日内固定，避免随行情秒级重复下载日线。
+    const cached = this.previousSessionsCache;
+    if (cached?.tradeDate === tradeDate && cached.expiresAt > Date.now()) return cached.sessions;
+
+    let sessions: PreviousSessions | undefined;
+    try {
+      const text = await this.fetchHttp(StockDataService.THS_INDEX_DAILY, this.thsSpotHeaders(), undefined, undefined, signal);
+      const payload = JSON.parse(text.slice(text.indexOf("(") + 1, text.lastIndexOf(")"))) as { data?: string };
+      const rows = (payload.data ?? "").split(";").map((row) => row.split(","))
+        .filter(([date]) => /^\d{8}$/.test(date) && date < tradeDate)
+        .sort(([left], [right]) => right.localeCompare(left));
+      const yesterday = Number(rows[0]?.[4]);
+      const earlier = Number(rows[1]?.[4]);
+      // 昨收与分时报价对齐，日线滞后时不把更早的交易日当成昨日。
+      if (Number.isFinite(earlier) && earlier > 0 && yesterday > 0 && Math.abs(yesterday - prevClose) < 0.005) {
+        sessions = {
+          dates: [rows[0][0], rows[1][0]],
+          changePercent: ((yesterday - earlier) / earlier) * 100,
+        };
+      }
+    } catch {
+      // 历史接口故障时，今日行情仍可用，短暂缓存失败避免密集重试。
+    }
+    this.previousSessionsCache = { tradeDate, sessions, expiresAt: sessions ? Infinity : Date.now() + 60_000 };
+    return sessions;
+  }
+
+  private previousTurnoverChange(chart: FuyaoChart, dates: PreviousSessions["dates"]): number | undefined {
+    // 两市成交额必须与指数日线的交易日期完全匹配，缺日时不向前补位。
+    const [yesterday, earlier] = dates.map((date) => {
+      const midnight = Date.parse(`${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T00:00:00+08:00`);
+      return chart.point_list?.find(([timestamp]) => timestamp === midnight)?.[1];
+    });
+    if (typeof yesterday === "number" && Number.isFinite(yesterday) && yesterday > 0 &&
+        typeof earlier === "number" && Number.isFinite(earlier) && earlier > 0) {
+      return yesterday - earlier;
+    }
+    return undefined;
   }
 
   /**
@@ -309,6 +370,7 @@ export class StockDataService {
   private async fetchThsSpot(signal?: AbortSignal): Promise<{
     price: number;
     prevClose: number;
+    tradeDate?: string;
     open: number;
     high: number;
     low: number;
@@ -353,7 +415,8 @@ export class StockDataService {
       low = low === 0 ? p : Math.min(low, p);
     }
 
-    return { price, prevClose, open, high, low, indexTrends };
+    const tradeDate = typeof o.date === "string" && /^\d{8}$/.test(o.date) ? o.date : undefined;
+    return { price, prevClose, tradeDate, open, high, low, indexTrends };
   }
 
   // ────────────────────────────────────────────

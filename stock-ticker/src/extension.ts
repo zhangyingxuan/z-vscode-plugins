@@ -93,7 +93,7 @@ async function refresh(force = false) {
 
   try {
     // 获取行情数据（快速响应）
-    const quote = await service.fetchQuote(ctrl.signal);
+    const quote = await service.fetchQuote(ctrl.signal, true);
     latestQuote = quote;
     lastFetchFailed = false;
     lastQuoteFetchTime = Date.now();
@@ -217,14 +217,26 @@ function renderStatusBar(q: StockQuote) {
         ? `-${diffYi}`
         : ``;
 
+  // 昨日两项比较的是两个已完成交易日，缺失历史时显示占位。
+  const previousPercent = q.previousSession?.changePercent;
+  const previousPercentText = previousPercent === undefined
+    ? "—"
+    : `${previousPercent >= 0 ? "+" : ""}${previousPercent.toFixed(2)}%`;
+  const previousTurnoverChange = q.previousSession?.turnoverChange;
+  const previousVolumeText = previousTurnoverChange === undefined
+    ? "—"
+    : previousTurnoverChange === 0
+      ? "持平"
+      : `${previousTurnoverChange > 0 ? "放量" : "缩量"} ${formatTurnover(Math.abs(previousTurnoverChange))}`;
+
   statusBarItem.text = `${icon} ${q.price.toFixed(2)} ${sign}${q.changePercent.toFixed(2)}% ${volText}`;
   statusBarItem.tooltip = new vscode.MarkdownString(
     [
       "| 指标 | 今日 | 昨日 |",
       "| --- | --- | --- |",
       `| 点位 | ${q.price.toFixed(2)} | ${q.prevClose.toFixed(2)} |`,
-      `| 涨跌 | ${sign}${q.changePercent.toFixed(2)}% | ${todayChange.toFixed(2)} |`,
-      `| 成交量 | ${volText} 亿 | ${formatTurnover(q.predictTurnover)}(预测) |`,
+      `| 涨跌 | ${sign}${q.changePercent.toFixed(2)}% | ${previousPercentText} |`,
+      `| 缩放量 | ${volText ? volText + " 亿" : "—"} | ${previousVolumeText} |`,
       `| 成交额 | ${formatTurnover(q.turnover)} | ${formatTurnover(q.prevTurnover)} |`,
       `| 均额5/60日 | ${formatTurnover(q.avgTurnover5)} | ${formatTurnover(q.avgTurnover60)} |`,
       "",

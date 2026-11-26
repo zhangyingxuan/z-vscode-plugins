@@ -6,7 +6,7 @@
 
 ## 1. 项目概述（一句话）
 
-z-vscode-plugins 是 VS Code 插件集，当前含一个插件 **stock-ticker**（v0.0.3）——「秒级 A 股指数观测」：状态栏实时显示上证指数行情，侧栏 Canvas 分时图 + 板块/个股新高新低看板，看板问句可由用户自定义。
+z-vscode-plugins 包含 VS Code 插件 **stock-ticker** 和 Windows 桌面应用 **stock-ticker-electron**。插件提供状态栏行情、分时图和可定制看板，桌面应用提供可独立启动的置顶行情浮窗。
 
 ---
 
@@ -14,7 +14,7 @@ z-vscode-plugins 是 VS Code 插件集，当前含一个插件 **stock-ticker**�
 
 ```
 z-vscode-plugins/
-├── stock-ticker/                       # 插件模块（当前唯一）
+├── stock-ticker/                       # VS Code 插件模块
 │   ├── package.json                    # 清单：3 命令 + 2 快捷键 + 5 配置项 + 构建脚本
 │   ├── src/
 │   │   ├── extension.ts                # 入口：激活 / 状态栏 / 命令 / 定时器 / Webview 生命周期
@@ -26,6 +26,8 @@ z-vscode-plugins/
 │   │       └── query-manager-webview.ts  # 问句管理 Webview
 │   ├── out/                            # 编译产物（tsc 输出；vsix 以 out 为 main，不打入 src）
 │   └── *.vsix                          # 打包产物（0.0.1 / 0.0.2 / 0.0.3）
+├── stock-ticker-electron/              # 桌面行情浮窗，复用同级插件的行情服务
+│   └── src/                            # main/ 原生窗口和行情，preload/ IPC，renderer/ React
 ├── docs/                               # 知识库（本目录，详见路由规则）
 └── skills/                             # wind-mcp-skill（万得金融数据检索技能）
 ```
@@ -38,12 +40,12 @@ z-vscode-plugins/
 
 | 用户意图 | 分类索引 |
 |----------|----------|
-| 功能、需求、验收标准 | `01-需求分析/_index.md` |
+| 功能、需求、验收标准、Electron 行情浮窗 | `01-需求分析/_index.md` |
 | 业务流程、术语 | `02-业务梳理/_index.md` |
-| 架构、设计决策 | `03-架构设计/_index.md` |
+| 架构、设计决策、Electron 进程与 IPC | `03-架构设计/_index.md` |
 | 开发、联调、环境、报错 | `04-技术方案/_index.md` |
 | API 接口、数据库 | `05-API文档/_index.md` |
-| 技术栈、规范、发布 | `06-开发规范/_index.md` |
+| 技术栈、规范、发布、Electron ZIP 与 EXE 打包 | `06-开发规范/_index.md` |
 | 测试、用例、回归 | `07-测试用例/_index.md` |
 
 **步骤**：读本文件 → 匹配分类 → 读 `_index.md` → 按触发关键词匹配文件 → 读目标文件。
@@ -93,6 +95,7 @@ z-vscode-plugins/
 | `src/components/*-webview.ts`（消息协议/UI） | `04-技术方案/Webview方案.md` |
 | `package.json` contributes（命令/快捷键/配置项） | `01-需求分析/功能需求清单.md`、`06-开发规范/技术栈.md` |
 | `package.json` scripts / 版本号 | `06-开发规范/发布流程.md` |
+| `stock-ticker-electron/` 的窗口行为、进程通信、构建或共享行情接入 | `01-需求分析/Electron行情浮窗需求.md`、`03-架构设计/Electron行情浮窗技术架构.md` |
 
 ---
 

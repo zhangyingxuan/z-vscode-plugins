@@ -1,0 +1,73 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #191c21;
+  color: #e4e8ed;
+  font: 11px "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+main { display: flex; flex-direction: column; height: 100vh; }
+.above .bar { order: 1; }
+.bar {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 30px;
+  border: 1px solid #353c45;
+  background: linear-gradient(#23272e, #1c1f25);
+}
+.drag {
+  display: grid;
+  width: 17px;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+  color: #7e8a99;
+}
+.drag:active { cursor: grabbing; }
+button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+button:focus-visible { outline: 1px solid #83a9d3; outline-offset: -2px; }
+.metrics {
+  display: flex;
+  flex: 1;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding-right: 4px;
+  white-space: nowrap;
+  font-family: "Cascadia Mono", Consolas, monospace;
+  font-size: 12px;
+}
+.metrics > :first-child { font-weight: 600; }
+.up { color: #ff9587; }
+.down { color: #9ad59e; }
+.volume { border-left: 1px solid #444d58; padding-left: 5px; }
+.warning { position: absolute; right: 2px; top: 1px; color: #f0be75; font-size: 9px; }
+.details {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 3px 4px;
+  border: 1px solid #353c45;
+  background: #191c21;
+}
+.details[hidden] { display: none; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 10px; }
+th, td { height: 20px; padding: 0 1px; text-align: right; font-weight: 400; }
+thead th:first-child { width: 30%; }
+th:first-child { text-align: left; color: #a9b3c1; }
+thead th { border-bottom: 1px solid #3a424d; color: #b9c4d2; }
+tbody tr + tr { border-top: 1px solid #2b3038; }
+.actions { display: flex; align-items: center; justify-content: flex-end; gap: 3px; padding: 1px 1px 0; }
+.actions button { width: 25px; height: 24px; border-radius: 4px; font-size: 16px; }
+.actions button:hover { background: #303946; }
+.actions button:disabled { opacity: .5; cursor: default; }
